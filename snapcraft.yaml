@@ -1,0 +1,35 @@
+name: gitu
+base: core24
+summary: A terminal user interface for Git. Inspired by Magit.
+version: "0.25.0"
+description: |
+  Gitu aims to implement many of the core features of Magit over time.
+  It should be familiar to any previous Magit users.
+
+contact: https://github.com/mr-cal/gitu/issues
+issues:
+  - https://github.com/mr-cal/gitu/issues
+  - https://github.com/altsem/gitu/issues
+source-code: https://github.com/altsem/gitu
+website: https://github.com/altsem/gitu
+
+grade: stable
+confinement: strict
+
+apps:
+  gitu:
+    command: bin/gitu
+    plugs:
+      - home
+      - removable-media
+
+parts:
+  gitu:
+    plugin: rust
+    source: https://github.com/altsem/gitu.git
+    source-tag: "v$SNAPCRAFT_PROJECT_VERSION"
+    source-depth: 1
+    rust-cargo-parameters:
+      - "--target x86_64-unknown-linux-gnu"
+    stage-packages:
+      - git
