@@ -18,12 +18,30 @@ adopt-info: gitu
 grade: stable
 confinement: strict
 
+plugs:
+  user-gitconfig:
+    interface: personal-files
+    read:
+      - $HOME/.gitconfig
+      - $HOME/.config/git
+  system-gitconfig:
+    interface: system-files
+    read:
+      - /etc/gitconfig
+
 apps:
   gitu:
     command: bin/gitu
     plugs:
+      - user-gitconfig
+      - system-gitconfig
+      - gpg-keys
+      - gpg-public-keys
       - home
+      - network
       - removable-media
+      - ssh-keys
+      - ssh-public-keys
 
 parts:
   gitu:
@@ -31,6 +49,10 @@ parts:
     source: https://github.com/altsem/gitu.git
     stage-packages:
       - git
+      - vim-tiny
+      - nano
+    organize:
+      usr/bin/vim.tiny: usr/bin/vim
     override-build: |
       craftctl set version="$(git describe --always --match 'v[0-9]*.[0-9]*.[0-9]*' --exclude '*[^v0-9.]*')"
       craftctl default
