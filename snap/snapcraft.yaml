@@ -24,17 +24,22 @@ plugs:
     read:
       - $HOME/.gitconfig
       - $HOME/.config/git
+      - $HOME/.config/gitu
   system-gitconfig:
     interface: system-files
     read:
       - /etc/gitconfig
 
+layout:
+  /etc/nanorc:
+    bind-file: $SNAP/etc/nanorc
+  /usr/share/nano:
+    bind: $SNAP/usr/share/nano
+
 apps:
   gitu:
-    command: bin/gitu
+    command: wrapper.sh
     plugs:
-      - user-gitconfig
-      - system-gitconfig
       - gpg-keys
       - gpg-public-keys
       - home
@@ -42,6 +47,8 @@ apps:
       - removable-media
       - ssh-keys
       - ssh-public-keys
+      - system-gitconfig
+      - user-gitconfig
 
 parts:
   gitu:
@@ -56,3 +63,7 @@ parts:
     override-build: |
       craftctl set version="$(git describe --always --match 'v[0-9]*.[0-9]*.[0-9]*' --exclude '*[^v0-9.]*')"
       craftctl default
+
+  wrapper:
+    plugin: dump
+    source: snap/local

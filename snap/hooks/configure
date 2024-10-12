@@ -1,0 +1,13 @@
+#!/bin/sh -e
+
+editor="$(snapctl get editor)"
+
+if [ -z "$editor" ]; then
+  snapctl set editor="vim"
+  editor="vim"
+fi
+
+# EDITOR should be enough, but set all 3 env vars to be safe
+echo "export GIT_EDITOR=$editor" > "$SNAP_DATA/env"
+echo "export EDITOR=$editor" >> "$SNAP_DATA/env"
+echo "export VISUAL=$editor" >> "$SNAP_DATA/env"
