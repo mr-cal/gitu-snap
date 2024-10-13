@@ -4,7 +4,6 @@ summary: A terminal user interface for Git. Inspired by Magit.
 description: |
   Gitu aims to implement many of the core features of Magit over time.
   It should be familiar to any previous Magit users.
-
 contact: https://github.com/mr-cal/gitu-snap/issues
 issues:
   - https://github.com/mr-cal/gitu-snap/issues
@@ -39,9 +38,9 @@ layout:
 apps:
   gitu:
     command: wrapper.sh
+    environment:
+      GIT_CONFIG_GLOBAL: "$SNAP_REAL_HOME/.gitconfig"
     plugs:
-      - gpg-keys
-      - gpg-public-keys
       - home
       - network
       - removable-media
