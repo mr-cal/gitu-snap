@@ -7,7 +7,7 @@ distributions.</p>
 
 ## Install
 
-    sudo snap install gitu
+    sudo snap install gitu --beta
 
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-white.svg)](https://snapcraft.io/gitu)
 
@@ -24,7 +24,9 @@ You can change Snap configuration by running `snap set gitu <key>=<value>`. For 
 
 ## Limitations
 
-This snap runs in a confined environment, so it cannot open arbitrary text editors. For this reason, the snap bundles `vim` and `nano`. Unfortunately, `nano` does not work due to an [upstream bug](https://github.com/altsem/gitu/issues/215).
+* This snap runs in a confined environment, so it cannot open arbitrary text editors.
+* Signed commits are not supported. See [cannot sign commits](https://github.com/mr-cal/gitu-snap/pull/1)) for more information.
+
 
 ## Contributing
 
