@@ -23,6 +23,9 @@ plugs:
     read:
       - $HOME/.gitconfig
       - $HOME/.config/git
+    #write:
+      # gpg in core24 fails if it cannot create a lock file
+      #- $HOME/.gnupg
   system-gitconfig:
     interface: system-files
     read:
@@ -35,12 +38,35 @@ layout:
     bind: $SNAP/usr/share/nano
   /etc/gitconfig:
     bind-file: $SNAP_DATA/etc/gitconfig
+  /etc/gnupg:
+    bind: $SNAP/etc/gnupg
+  /usr/bin/dirmngr:
+    bind-file: $SNAP/usr/bin/dirmngr
+  /usr/bin/gpg:
+    bind-file: $SNAP/usr/bin/gpg
+  /usr/bin/gpg-agent:
+    bind-file: $SNAP/usr/bin/gpg-agent
+  /usr/bin/gpg-connect-agent:
+    bind-file: $SNAP/usr/bin/gpg-connect-agent
+  /usr/bin/gpgconf:
+    bind-file: $SNAP/usr/bin/gpgconf
+  /usr/bin/gpgsm:
+    bind-file: $SNAP/usr/bin/gpgsm
+  /usr/bin/gpgv:
+    bind-file: $SNAP/usr/bin/gpgv
+  /usr/bin/pinentry:
+    bind-file: $SNAP/usr/bin/pinentry-gnome3
+  /usr/lib/gnupg:
+    bind: $SNAP/usr/lib/gnupg
+  /usr/share/gnupg:
+    bind: $SNAP/usr/share/gnupg
 
 apps:
   gitu:
     command: wrapper.sh
     environment:
       GIT_CONFIG_GLOBAL: "$SNAP_REAL_HOME/.gitconfig"
+      GNUPGHOME: "$SNAP_REAL_HOME/.gnupg"
     plugs:
       - home
       - network
@@ -55,6 +81,7 @@ parts:
     source: https://github.com/altsem/gitu.git
     stage-packages:
       - git
+      - gnupg
       - vim-tiny
       - nano
     organize:
