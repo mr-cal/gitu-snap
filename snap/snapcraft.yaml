@@ -45,7 +45,6 @@ apps:
       - network
       - removable-media
       - ssh-keys
-      - ssh-public-keys
       - system-gitconfig
       - user-gitconfig
 
