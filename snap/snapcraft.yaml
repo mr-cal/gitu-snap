@@ -23,7 +23,6 @@ plugs:
     read:
       - $HOME/.gitconfig
       - $HOME/.config/git
-      - $HOME/.config/gitu
   system-gitconfig:
     interface: system-files
     read:
