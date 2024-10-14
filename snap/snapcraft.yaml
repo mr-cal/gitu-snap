@@ -34,6 +34,8 @@ layout:
     bind-file: $SNAP/etc/nanorc
   /usr/share/nano:
     bind: $SNAP/usr/share/nano
+  /etc/gitconfig:
+    bind-file: $SNAP_DATA/etc/gitconfig
 
 apps:
   gitu:
