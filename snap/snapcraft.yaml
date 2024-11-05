@@ -18,12 +18,12 @@ grade: stable
 confinement: strict
 
 plugs:
-  user-gitconfig:
+  dot-gitconfig:
     interface: personal-files
     read:
       - $HOME/.gitconfig
       - $HOME/.config/git
-  system-gitconfig:
+  etc-gitconfig:
     interface: system-files
     read:
       - /etc/gitconfig
@@ -46,8 +46,8 @@ apps:
       - network
       - removable-media
       - ssh-keys
-      - system-gitconfig
-      - user-gitconfig
+      - dot-gitconfig
+      - etc-gitconfig
 
 parts:
   gitu:
