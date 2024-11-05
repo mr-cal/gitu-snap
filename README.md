@@ -27,6 +27,12 @@ You can change Snap configuration by running `snap set gitu <key>=<value>`. For 
 * This snap runs in a confined environment, so it cannot open arbitrary text editors.
 * Signed commits are not supported. See [cannot sign commits](https://github.com/mr-cal/gitu-snap/pull/1)) for more information.
 
+## SSH access
+
+To push, pull, and fetch from remotes via ssh such as `git@github.com:mr-cal/gitu-snap`, you need to provide the snap with read access to your ssh keys:
+
+    snap connections gitu
+    snap connect gitu:ssh-keys
 
 ## Contributing
 
