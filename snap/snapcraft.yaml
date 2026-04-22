@@ -1,8 +1,9 @@
 name: gitu
-base: core24
+base: core26
+build-base: devel
 summary: A terminal user interface for Git. Inspired by Magit.
 description: |
-  Gitu aims to implement many of the core features of Magit over time.
+  Gitu aims to implement many of the core features of Magit.
   It should be familiar to any previous Magit users.
 contact: https://github.com/mr-cal/gitu-snap/issues
 issues:
@@ -14,7 +15,7 @@ source-code:
 website: https://github.com/altsem/gitu
 
 adopt-info: gitu
-grade: stable
+grade: devel
 confinement: strict
 
 plugs:
