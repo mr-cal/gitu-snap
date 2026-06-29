@@ -22,11 +22,12 @@ distributions.</p>
 
 You can change Snap configuration by running `snap set gitu <key>=<value>`. For example, `snap set gitu editor=vim`.
 
-## Limitations
+## GPG commit signing
 
-* This snap runs in a confined environment, so it cannot open arbitrary text editors.
-* Signed commits are not supported. See [cannot sign commits](https://github.com/mr-cal/gitu-snap/pull/1)) for more information.
+Signed commits are supported after connecting the `dot-gnupg` personal-files interface:
 
+    snap connections gitu
+    snap connect gitu:dot-gnupg
 ## SSH access
 
 To push, pull, and fetch from remotes via ssh such as `git@github.com:mr-cal/gitu-snap`, you need to provide the snap with read access to your ssh keys:

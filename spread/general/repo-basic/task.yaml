@@ -1,0 +1,18 @@
+summary: Test basic git workflow in snap runtime
+
+execute: |
+  set -eux
+  snap run --shell gitu -c '
+    export HOME=/tmp/gitu-home
+    mkdir -p "$HOME" /tmp/gitu-basic
+    cd /tmp/gitu-basic
+
+    git init .
+    git config user.name "Spread Tester"
+    git config user.email "spread@example.com"
+
+    printf "hello\n" > README.md
+    git add README.md
+    git commit -m "baseline commit"
+    git log --oneline -1 | grep -q "baseline commit"
+  '
