@@ -1,14 +1,38 @@
-summary: Test gpg access prerequisites in strict snap
+summary: Test signed git commit in strict snap
 
 execute: |
   set -eux
 
   snap connect gitu:dot-gnupg
 
-  snap run --shell gitu -c 'command -v gpg'
-  snap run --shell gitu -c 'command -v gpg-agent'
-  snap run --shell gitu -c 'command -v gpgconf'
+  rm -rf /root/.gnupg /root/repo /root/signed.log
+  install -d -m 700 /root/.gnupg
+  install -d -m 755 /root/repo
 
-  USER_HOME=$(snap run --shell gitu -c 'echo "$SNAP_REAL_HOME"')
-  snap run --shell gitu -c "mkdir -p $USER_HOME/.gnupg && touch $USER_HOME/.gnupg/.snap-write-check"
-  snap run --shell gitu -c "test -f $USER_HOME/.gnupg/.snap-write-check"
+  env HOME=/root GNUPGHOME=/root/.gnupg \
+    gpg --batch --pinentry-mode loopback --passphrase '' \
+    --quick-gen-key 'Spread GPG Tester <spread-gpg@example.com>' default default never
+
+  KEY_ID=$(env HOME=/root GNUPGHOME=/root/.gnupg \
+    gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5; exit}')
+
+  env HOME=/root GNUPGHOME=/root/.gnupg bash -c "
+    cd /root/repo &&
+    git init . &&
+    git config user.name 'Spread Tester' &&
+    git config user.email 'spread-gpg@example.com' &&
+    git config gpg.program gpg &&
+    git config user.signingkey $KEY_ID &&
+    git config commit.gpgsign true &&
+    printf 'signed\\n' > README.md &&
+    git add README.md &&
+    git commit -m 'signed commit'
+  "
+
+  env HOME=/root GNUPGHOME=/root/.gnupg \
+    snap run --shell gitu -c "
+      cd /root/repo &&
+      git log --show-signature -1 > /root/signed.log
+    "
+
+  grep -Eq 'Good signature|gpg: Signature made' /root/signed.log
