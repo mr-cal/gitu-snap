@@ -1,0 +1,5 @@
+summary: Test gitu version command
+
+execute: |
+  set -eu
+  snap run --shell gitu -c 'git --version | grep -q "^git version "'

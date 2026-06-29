@@ -1,0 +1,14 @@
+summary: Test gpg access prerequisites in strict snap
+
+execute: |
+  set -eux
+
+  snap connect gitu:dot-gnupg
+
+  snap run --shell gitu -c 'command -v gpg'
+  snap run --shell gitu -c 'command -v gpg-agent'
+  snap run --shell gitu -c 'command -v gpgconf'
+
+  USER_HOME=$(snap run --shell gitu -c 'echo "$SNAP_REAL_HOME"')
+  snap run --shell gitu -c "mkdir -p $USER_HOME/.gnupg && touch $USER_HOME/.gnupg/.snap-write-check"
+  snap run --shell gitu -c "test -f $USER_HOME/.gnupg/.snap-write-check"
