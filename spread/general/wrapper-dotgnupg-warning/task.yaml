@@ -1,0 +1,82 @@
+summary: Warn on gpg failures when dot-gnupg disconnected
+
+execute: |
+  set -eux
+
+  workdir=$(mktemp -d)
+  trap 'rm -rf "$workdir"' EXIT
+
+  mkdir -p "$workdir/snap/bin" "$workdir/snap-data" "$workdir/fake-bin"
+  printf '#!/bin/sh\n' > "$workdir/snap-data/env"
+
+  if [ -f snap/local/wrapper.sh ]; then
+    wrapper_path="snap/local/wrapper.sh"
+  elif [ -f ../../../snap/local/wrapper.sh ]; then
+    wrapper_path="../../../snap/local/wrapper.sh"
+  elif [ -n "${PROJECT_PATH:-}" ] && [ -f "$PROJECT_PATH/snap/local/wrapper.sh" ]; then
+    wrapper_path="$PROJECT_PATH/snap/local/wrapper.sh"
+  else
+    echo "Could not locate snap/local/wrapper.sh"
+    exit 1
+  fi
+
+  write_snapctl() {
+    code="$1"
+    printf '%s\n' \
+      '#!/bin/sh' \
+      'if [ "$1" = "is-connected" ] && [ "$2" = "dot-gnupg" ]; then' \
+      "  exit $code" \
+      'fi' \
+      'exit 2' > "$workdir/fake-bin/snapctl"
+    chmod +x "$workdir/fake-bin/snapctl"
+  }
+
+  write_gitu() {
+    stderr_message="$1"
+    exit_code="$2"
+    printf '%s\n' \
+      '#!/bin/sh' \
+      "printf '%s\\n' \"$stderr_message\" >&2" \
+      "exit $exit_code" > "$workdir/snap/bin/gitu"
+    chmod +x "$workdir/snap/bin/gitu"
+  }
+
+  run_wrapper() {
+    stderr_file="$1"
+    set +e
+    env SNAP="$workdir/snap" SNAP_DATA="$workdir/snap-data" PATH="$workdir/fake-bin:$PATH" \
+      sh "$wrapper_path" > "$workdir/stdout.log" 2> "$stderr_file"
+    rc=$?
+    set -e
+    printf '%s' "$rc"
+  }
+
+  write_gitu "fatal: gpg failed to sign the data" 1
+  write_snapctl 1
+  rc=$(run_wrapper "$workdir/gpg-disconnected.log")
+  [ "$rc" -eq 1 ]
+  grep -q 'fatal: gpg failed to sign the data' "$workdir/gpg-disconnected.log"
+  grep -q 'dot-gnupg is not connected' "$workdir/gpg-disconnected.log"
+  grep -q 'snap connect gitu:dot-gnupg' "$workdir/gpg-disconnected.log"
+
+  write_gitu "fatal: not a git repository" 1
+  write_snapctl 1
+  rc=$(run_wrapper "$workdir/non-gpg-disconnected.log")
+  [ "$rc" -eq 1 ]
+  grep -q 'fatal: not a git repository' "$workdir/non-gpg-disconnected.log"
+  if grep -q 'snap connect gitu:dot-gnupg' "$workdir/non-gpg-disconnected.log"; then
+    echo "Unexpected dot-gnupg warning for non-gpg failure"
+    cat "$workdir/non-gpg-disconnected.log"
+    exit 1
+  fi
+
+  write_gitu "fatal: gpg failed to sign the data" 1
+  write_snapctl 0
+  rc=$(run_wrapper "$workdir/gpg-connected.log")
+  [ "$rc" -eq 1 ]
+  grep -q 'fatal: gpg failed to sign the data' "$workdir/gpg-connected.log"
+  if grep -q 'snap connect gitu:dot-gnupg' "$workdir/gpg-connected.log"; then
+    echo "Unexpected dot-gnupg warning while interface is connected"
+    cat "$workdir/gpg-connected.log"
+    exit 1
+  fi
