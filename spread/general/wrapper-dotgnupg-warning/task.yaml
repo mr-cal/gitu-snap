@@ -9,7 +9,12 @@ execute: |
   mkdir -p "$workdir/snap/bin" "$workdir/snap-data" "$workdir/fake-bin"
   printf '#!/bin/sh\n' > "$workdir/snap-data/env"
 
-  if [ -f snap/local/wrapper.sh ]; then
+  wrapper_path=""
+  snap_wrapper=$(snap run --shell gitu -c 'printf "%s" "$SNAP/wrapper.sh"' 2>/dev/null || true)
+  if [ -n "$snap_wrapper" ] && [ -f "$snap_wrapper" ]; then
+    cp "$snap_wrapper" "$workdir/wrapper.sh"
+    wrapper_path="$workdir/wrapper.sh"
+  elif [ -f snap/local/wrapper.sh ]; then
     wrapper_path="snap/local/wrapper.sh"
   elif [ -f ../../../snap/local/wrapper.sh ]; then
     wrapper_path="../../../snap/local/wrapper.sh"
