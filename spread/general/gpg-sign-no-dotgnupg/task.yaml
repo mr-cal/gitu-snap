@@ -1,0 +1,47 @@
+summary: Fail signing without dot-gnupg interface
+
+execute: |
+  set -eux
+
+  snap disconnect gitu:dot-gnupg || true
+
+  rm -rf /home/gpgtester/.gnupg /home/gpgtester/repo /home/gpgtester/sign-error.log
+  id -u gpgtester >/dev/null 2>&1 || useradd -m -s /bin/bash gpgtester
+  install -d -m 700 -o gpgtester -g gpgtester /home/gpgtester/.gnupg
+  install -d -m 755 -o gpgtester -g gpgtester /home/gpgtester/repo
+
+  sudo -u gpgtester env HOME=/home/gpgtester GNUPGHOME=/home/gpgtester/.gnupg \
+    gpg --batch --pinentry-mode loopback --passphrase '' \
+    --quick-gen-key 'Spread GPG Tester <spread-gpg@example.com>' default default never
+
+  KEY_ID=$(sudo -u gpgtester env HOME=/home/gpgtester GNUPGHOME=/home/gpgtester/.gnupg \
+    gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5; exit}')
+
+  set +e
+  runuser -u gpgtester -- env HOME=/home/gpgtester GNUPGHOME=/home/gpgtester/.gnupg \
+    snap run --shell gitu -c "
+      cd /home/gpgtester/repo &&
+      git init . &&
+      git config user.name 'Spread Tester' &&
+      git config user.email 'spread-gpg@example.com' &&
+      git config gpg.program gpg &&
+      git config user.signingkey $KEY_ID &&
+      git config commit.gpgsign true &&
+      printf 'signed\\n' > README.md &&
+      git add README.md &&
+      git commit -m 'signed commit'
+    "
+  rc=$?
+  set -e
+
+  if [ "$rc" -eq 0 ]; then
+    echo "Expected signing failure without dot-gnupg, but commit succeeded"
+    exit 1
+  fi
+
+  if git -C /home/gpgtester/repo rev-parse --verify HEAD >/dev/null 2>&1; then
+    echo "Expected no commit object without dot-gnupg, but HEAD exists"
+    exit 1
+  fi
+
+  snap connect gitu:dot-gnupg
