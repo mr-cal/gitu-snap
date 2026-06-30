@@ -1,8 +1,6 @@
 summary: Fail signing without dot-gnupg interface
 
 execute: |
-  set -eux
-
   snap disconnect gitu:dot-gnupg || true
 
   rm -rf /home/gpgtester/.gnupg /home/gpgtester/repo /home/gpgtester/sign-error.log
