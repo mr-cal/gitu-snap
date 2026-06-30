@@ -1,24 +1,25 @@
 summary: Fail signing without dot-gnupg interface
 
 execute: |
+  set -eux
+
   snap disconnect gitu:dot-gnupg || true
 
-  rm -rf /home/gpgtester/.gnupg /home/gpgtester/repo /home/gpgtester/sign-error.log
-  id -u gpgtester >/dev/null 2>&1 || useradd -m -s /bin/bash gpgtester
-  install -d -m 700 -o gpgtester -g gpgtester /home/gpgtester/.gnupg
-  install -d -m 755 -o gpgtester -g gpgtester /home/gpgtester/repo
+  rm -rf /root/.gnupg /root/repo /root/sign-error.log
+  install -d -m 700 /root/.gnupg
+  install -d -m 755 /root/repo
 
-  sudo -u gpgtester env HOME=/home/gpgtester GNUPGHOME=/home/gpgtester/.gnupg \
+  env HOME=/root GNUPGHOME=/root/.gnupg \
     gpg --batch --pinentry-mode loopback --passphrase '' \
     --quick-gen-key 'Spread GPG Tester <spread-gpg@example.com>' default default never
 
-  KEY_ID=$(sudo -u gpgtester env HOME=/home/gpgtester GNUPGHOME=/home/gpgtester/.gnupg \
+  KEY_ID=$(env HOME=/root GNUPGHOME=/root/.gnupg \
     gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5; exit}')
 
   set +e
-  runuser -u gpgtester -- env HOME=/home/gpgtester GNUPGHOME=/home/gpgtester/.gnupg \
+  env HOME=/root GNUPGHOME=/root/.gnupg \
     snap run --shell gitu -c "
-      cd /home/gpgtester/repo &&
+      cd /root/repo &&
       git init . &&
       git config user.name 'Spread Tester' &&
       git config user.email 'spread-gpg@example.com' &&
@@ -28,7 +29,7 @@ execute: |
       printf 'signed\\n' > README.md &&
       git add README.md &&
       git commit -m 'signed commit'
-    " 2> /home/gpgtester/sign-error.log
+    " 2> /root/sign-error.log
   rc=$?
   set -e
 
@@ -37,20 +38,26 @@ execute: |
     exit 1
   fi
 
-  if git -C /home/gpgtester/repo rev-parse --verify HEAD >/dev/null 2>&1; then
+  if git -C /root/repo rev-parse --verify HEAD >/dev/null 2>&1; then
     echo "Expected no commit object without dot-gnupg, but HEAD exists"
     exit 1
   fi
 
-  if ! grep -q 'dot-gnupg is not connected' /home/gpgtester/sign-error.log; then
-    echo "Expected disconnection warning in signing failure output"
-    cat /home/gpgtester/sign-error.log
+  if ! grep -Eq 'gpg|sign' /root/sign-error.log; then
+    echo "Expected a gpg-related failure in signing output"
+    cat /root/sign-error.log
     exit 1
   fi
 
-  if ! grep -q 'snap connect gitu:dot-gnupg' /home/gpgtester/sign-error.log; then
+  if ! grep -q 'dot-gnupg is not connected' /root/sign-error.log; then
+    echo "Expected disconnection warning in signing failure output"
+    cat /root/sign-error.log
+    exit 1
+  fi
+
+  if ! grep -q 'snap connect gitu:dot-gnupg' /root/sign-error.log; then
     echo "Expected manual connect hint in signing failure output"
-    cat /home/gpgtester/sign-error.log
+    cat /root/sign-error.log
     exit 1
   fi
 
