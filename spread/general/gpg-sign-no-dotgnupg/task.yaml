@@ -28,7 +28,7 @@ execute: |
       printf 'signed\\n' > README.md &&
       git add README.md &&
       git commit -m 'signed commit'
-    "
+    " 2> /home/gpgtester/sign-error.log
   rc=$?
   set -e
 
@@ -39,6 +39,18 @@ execute: |
 
   if git -C /home/gpgtester/repo rev-parse --verify HEAD >/dev/null 2>&1; then
     echo "Expected no commit object without dot-gnupg, but HEAD exists"
+    exit 1
+  fi
+
+  if ! grep -q 'dot-gnupg is not connected' /home/gpgtester/sign-error.log; then
+    echo "Expected disconnection warning in signing failure output"
+    cat /home/gpgtester/sign-error.log
+    exit 1
+  fi
+
+  if ! grep -q 'snap connect gitu:dot-gnupg' /home/gpgtester/sign-error.log; then
+    echo "Expected manual connect hint in signing failure output"
+    cat /home/gpgtester/sign-error.log
     exit 1
   fi
 
