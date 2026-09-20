@@ -5,6 +5,7 @@ on:
     branches: [candidate]
   pull_request:
     branches: [candidate]
+  workflow_dispatch:
 
 jobs:
   build-and-test:

@@ -1,0 +1,105 @@
+summary: Verify gitconfig and XDG git config files are read by gitu snap
+
+execute: |
+  set -eux
+
+  # Ensure dot-gitconfig plug is connected
+  snap connect gitu:dot-gitconfig
+
+  # Clean up test directories
+  rm -rf /root/gitconfig-repo /root/.gitconfig /root/.config/git
+  install -d -m 755 /root/gitconfig-repo
+  install -d -m 755 /root/.config/git
+  cd /root/gitconfig-repo
+
+  git init -b main .
+
+  # Case 1: Config exclusively in ~/.config/git/config (XDG standard)
+  cat << 'EOF' > /root/.config/git/config
+  [user]
+      name = XDG User
+      email = xdg@example.com
+  EOF
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with xdg config"
+  author=$(git log -1 --pretty='%an <%ae>')
+  [ "$author" = "XDG User <xdg@example.com>" ]
+
+  # Verify gitu TUI can run and render in repo configured via XDG
+  script -q -e -c "stty cols 80 rows 24 && snap run gitu --print" /dev/null \
+    | sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g' \
+    | grep -q "On branch main"
+
+  # Case 2: Config exclusively in ~/.gitconfig
+  rm -rf /root/.config/git
+  cat << 'EOF' > /root/.gitconfig
+  [user]
+      name = DotGitconfig User
+      email = dotgit@example.com
+  EOF
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with dotgitconfig"
+  author=$(git log -1 --pretty='%an <%ae>')
+  [ "$author" = "DotGitconfig User <dotgit@example.com>" ]
+
+  # Case 3: Both ~/.config/git/config and ~/.gitconfig exist (precedence)
+  install -d -m 755 /root/.config/git
+  cat << 'EOF' > /root/.config/git/config
+  [user]
+      name = Combined User
+      email = xdg-base@example.com
+  EOF
+  cat << 'EOF' > /root/.gitconfig
+  [user]
+      email = dotgit-override@example.com
+  EOF
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with combined config"
+  author=$(git log -1 --pretty='%an <%ae>')
+  [ "$author" = "Combined User <dotgit-override@example.com>" ]
+
+  # Case 4: Verify global gitignore in ~/.config/git/ignore is respected
+  echo "*.ignored" > /root/.config/git/ignore
+  touch test.ignored
+  ignored_check=$(GITU_BIN=git snap run gitu status --porcelain)
+  [ -z "$ignored_check" ]
+
+  # Case 5: System gitconfig via $SNAP_DATA/etc/gitconfig layout
+  install -d -m 755 /var/snap/gitu/current/etc
+  cat << 'EOF' > /var/snap/gitu/current/etc/gitconfig
+  [user]
+      name = System User
+      email = system@example.com
+  EOF
+  rm -rf /root/.config/git /root/.gitconfig
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with system config"
+  sys_author=$(git log -1 --pretty='%an <%ae>')
+  [ "$sys_author" = "System User <system@example.com>" ]
+  rm -f /var/snap/gitu/current/etc/gitconfig
+
+  # Case 6: Warning when committer identity is unknown and dot-gitconfig is disconnected
+  snap disconnect gitu:dot-gitconfig || true
+  set +e
+  GITU_BIN=sh snap run gitu -c "echo 'fatal: unable to auto-detect email address' >&2; exit 1" 2> /root/ident-disc.log
+  set -e
+  grep -q "dot-gitconfig is not connected" /root/ident-disc.log
+  grep -q "snap connect gitu:dot-gitconfig" /root/ident-disc.log
+  snap connect gitu:dot-gitconfig
+
+  # Case 7: Note when committer identity is missing with dot-gitconfig connected
+  set +e
+  GITU_BIN=sh snap run gitu -c "echo 'Committer identity unknown' >&2; exit 1" 2> /root/ident-conn.log
+  set -e
+  grep -q "committer identity not found in ~/.gitconfig or ~/.config/git/config" /root/ident-conn.log
+
+  # Case 8: Warning when an included gitconfig is inaccessible under snap confinement
+  set +e
+  GITU_BIN=sh snap run gitu -c "echo 'fatal: unable to access \"/root/.gitconfig.work\": Permission denied' >&2; exit 1" 2> /root/include-perm.log
+  set -e
+  grep -q "strict snap confinement restricts git configuration" /root/include-perm.log
+  grep -q "move included config files into ~/.config/git/" /root/include-perm.log
+
+restore: |
+  rm -rf /root/gitconfig-repo /root/.gitconfig /root/.config/git /root/*.log /var/snap/gitu/current/etc/gitconfig
+  snap connect gitu:dot-gitconfig || true

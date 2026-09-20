@@ -1,0 +1,35 @@
+summary: Test gitu TUI rendering with --print and -k
+
+execute: |
+  set -eux
+
+  rm -rf /root/tui-repo
+  install -d -m 755 /root/tui-repo
+  cd /root/tui-repo
+
+  git init -b main .
+  git config user.name "Spread Tester"
+  git config user.email "spread@example.com"
+
+  printf "hello world\n" > README.md
+  git add README.md
+  git commit -m "initial commit"
+
+  # Helper to run gitu inside a PTY with explicit terminal dimensions and stripped ANSI escapes
+  run_gitu() {
+    script -q -e -c "stty cols 80 rows 24 && snap run gitu $*" /dev/null \
+      | sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g'
+  }
+
+  # Test 1: Verify gitu --print renders the status screen
+  output=$(run_gitu --print)
+  printf '%s\n' "$output" | grep -q "On branch main"
+  printf '%s\n' "$output" | grep -q "Recent commits"
+  printf '%s\n' "$output" | grep -q "initial commit"
+
+  # Test 2: Verify gitu -k sends keystrokes on startup (opening help menu with 'h')
+  help_output=$(run_gitu -k h --print)
+  printf '%s\n' "$help_output" | grep -Eq "(Help|Submenu)"
+
+restore: |
+  rm -rf /root/tui-repo

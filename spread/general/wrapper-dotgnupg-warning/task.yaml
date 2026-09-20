@@ -1,0 +1,34 @@
+summary: Warn on gpg failures when dot-gnupg disconnected
+
+execute: |
+  set -eux
+
+  run_wrapper() {
+    GITU_BIN=sh snap run gitu -c "$1" 2>&1 || true
+  }
+
+  # Case 1: gpg failure + dot-gnupg disconnected → warning shown
+  snap disconnect gitu:dot-gnupg || true
+  output=$(run_wrapper 'printf "error: gpg failed to sign the data\n" >&2; exit 1')
+  printf '%s\n' "$output" | grep -q 'dot-gnupg is not connected'
+  printf '%s\n' "$output" | grep -q 'snap connect gitu:dot-gnupg'
+
+  # Case 2: non-gpg failure + dot-gnupg disconnected → no warning
+  output=$(run_wrapper 'printf "fatal: not a git repository\n" >&2; exit 1')
+  if printf '%s\n' "$output" | grep -q 'snap connect gitu:dot-gnupg'; then
+    printf '%s\n' "$output"
+    echo "Unexpected warning for non-gpg failure"
+    exit 1
+  fi
+
+  # Case 3: gpg failure + dot-gnupg connected → no warning
+  snap connect gitu:dot-gnupg
+  output=$(run_wrapper 'printf "error: gpg failed to sign the data\n" >&2; exit 1')
+  if printf '%s\n' "$output" | grep -q 'snap connect gitu:dot-gnupg'; then
+    printf '%s\n' "$output"
+    echo "Unexpected warning when dot-gnupg is connected"
+    exit 1
+  fi
+
+restore: |
+  snap connect gitu:dot-gnupg || true
