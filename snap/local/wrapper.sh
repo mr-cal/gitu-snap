@@ -30,11 +30,6 @@ if [ -n "$SNAP_REAL_HOME" ]; then
     fi
 fi
 
-# Read host /etc/gitconfig via etc-gitconfig plug if GIT_CONFIG_SYSTEM is not explicitly set
-if [ -z "${GIT_CONFIG_SYSTEM:-}" ] && [ -r "/var/lib/snapd/hostfs/etc/gitconfig" ]; then
-    export GIT_CONFIG_SYSTEM="/var/lib/snapd/hostfs/etc/gitconfig"
-fi
-
 emit_dot_gnupg_warning() {
     cat >&2 <<'EOF'
 [gitu snap] warning: gpg-related operation failed and dot-gnupg is not connected.
