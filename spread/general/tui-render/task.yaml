@@ -15,14 +15,19 @@ execute: |
   git add README.md
   git commit -m "initial commit"
 
+  # Helper to run gitu inside a PTY with explicit terminal dimensions
+  run_gitu() {
+    script -q -e -c "stty cols 80 rows 24 && snap run gitu $*" /dev/null
+  }
+
   # Test 1: Verify gitu --print renders the status screen
-  output=$(snap run gitu --print)
+  output=$(run_gitu --print)
   printf '%s\n' "$output" | grep -q "On branch main"
   printf '%s\n' "$output" | grep -q "Recent commits"
   printf '%s\n' "$output" | grep -q "initial commit"
 
   # Test 2: Verify gitu -k sends keystrokes on startup (opening help menu with 'h')
-  help_output=$(snap run gitu -k h --print)
+  help_output=$(run_gitu -k h --print)
   printf '%s\n' "$help_output" | grep -Eq "(Help|Submenu)"
 
 restore: |
