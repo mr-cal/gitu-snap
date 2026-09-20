@@ -2,6 +2,8 @@
 
 . "$SNAP_DATA/env"
 
+GITU_BIN="${GITU_BIN:-$SNAP/bin/gitu}"
+
 emit_dot_gnupg_warning() {
     cat >&2 <<'EOF'
 [gitu snap] warning: gpg-related operation failed and dot-gnupg is not connected.
@@ -10,7 +12,7 @@ EOF
 }
 
 if ! err_file=$(mktemp); then
-    exec "$SNAP/bin/gitu"
+    exec "$GITU_BIN" "$@"
 fi
 
 cleanup() {
@@ -19,7 +21,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-"$SNAP/bin/gitu" 2>"$err_file"
+"$GITU_BIN" "$@" 2>"$err_file"
 rc=$?
 
 cat "$err_file" >&2
