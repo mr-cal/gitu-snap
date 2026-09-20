@@ -30,10 +30,37 @@ if [ -n "$SNAP_REAL_HOME" ]; then
     fi
 fi
 
+# Read host /etc/gitconfig via etc-gitconfig plug if GIT_CONFIG_SYSTEM is not explicitly set
+if [ -z "${GIT_CONFIG_SYSTEM:-}" ] && [ -r "/var/lib/snapd/hostfs/etc/gitconfig" ]; then
+    export GIT_CONFIG_SYSTEM="/var/lib/snapd/hostfs/etc/gitconfig"
+fi
+
 emit_dot_gnupg_warning() {
     cat >&2 <<'EOF'
 [gitu snap] warning: gpg-related operation failed and dot-gnupg is not connected.
 [gitu snap] warning: run `snap connections gitu` and then `snap connect gitu:dot-gnupg`.
+EOF
+}
+
+emit_dot_gitconfig_warning() {
+    cat >&2 <<'EOF'
+[gitu snap] warning: committer identity unknown and dot-gitconfig is not connected.
+[gitu snap] warning: run `snap connections gitu` and then `snap connect gitu:dot-gitconfig`.
+EOF
+}
+
+emit_gitconfig_identity_note() {
+    cat >&2 <<'EOF'
+[gitu snap] note: committer identity not found in ~/.gitconfig or ~/.config/git/config.
+[gitu snap] note: configure your identity with `git config --global user.name "..."` and `git config --global user.email "..."`.
+EOF
+}
+
+emit_gitconfig_include_warning() {
+    cat >&2 <<'EOF'
+[gitu snap] warning: git could not access a configuration file due to permission denied.
+[gitu snap] warning: strict snap confinement restricts git configuration to ~/.gitconfig and ~/.config/git/.
+[gitu snap] warning: if using include.path, move included config files into ~/.config/git/ (e.g. ~/.config/git/work).
 EOF
 }
 
@@ -55,14 +82,37 @@ rc=$?
 # Always pass through the original stderr output unmodified
 cat "$err_file" >&2
 
-# If a GPG operation failed while dot-gnupg is disconnected, provide remediation advice
-if [ "$rc" -ne 0 ] && grep -Eiq '(gpg|signing failed|no secret key|gpg-agent|inappropriate ioctl for device|failed to sign)' "$err_file"; then
-    if command -v snapctl >/dev/null 2>&1; then
-        snapctl is-connected dot-gnupg >/dev/null 2>&1
-        snapctl_rc=$?
-        if [ "$snapctl_rc" -eq 1 ]; then
-            emit_dot_gnupg_warning
+# Inspect failure causes and provide remediation advice
+if [ "$rc" -ne 0 ]; then
+    # GPG operation failed
+    if grep -Eiq '(gpg|signing failed|no secret key|gpg-agent|inappropriate ioctl for device|failed to sign)' "$err_file"; then
+        if command -v snapctl >/dev/null 2>&1; then
+            snapctl is-connected dot-gnupg >/dev/null 2>&1
+            snapctl_rc=$?
+            if [ "$snapctl_rc" -eq 1 ]; then
+                emit_dot_gnupg_warning
+            fi
         fi
+    fi
+
+    # Committer identity unknown
+    if grep -Eiq '(committer identity unknown|unable to auto-detect email|empty ident name|no name was given and auto-detection is disabled)' "$err_file"; then
+        if command -v snapctl >/dev/null 2>&1; then
+            snapctl is-connected dot-gitconfig >/dev/null 2>&1
+            snapctl_rc=$?
+            if [ "$snapctl_rc" -eq 1 ]; then
+                emit_dot_gitconfig_warning
+            else
+                emit_gitconfig_identity_note
+            fi
+        else
+            emit_gitconfig_identity_note
+        fi
+    fi
+
+    # Unreadable config file (e.g. include outside confinement)
+    if grep -Eiq 'unable to (access|read config file).*(Permission denied|EACCES)' "$err_file"; then
+        emit_gitconfig_include_warning
     fi
 fi
 

@@ -64,5 +64,55 @@ execute: |
   ignored_check=$(GITU_BIN=git snap run gitu status --porcelain)
   [ -z "$ignored_check" ]
 
+  # Case 5: Host /etc/gitconfig support via etc-gitconfig interface
+  snap connect gitu:etc-gitconfig
+  rm -rf /root/.config/git /root/.gitconfig
+  if [ -f /etc/gitconfig ]; then
+    cp /etc/gitconfig /etc/gitconfig.bak
+  fi
+  cat << 'EOF' > /etc/gitconfig
+  [user]
+      name = System User
+      email = system@example.com
+  EOF
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with system config"
+  sys_author=$(git log -1 --pretty='%an <%ae>')
+  [ "$sys_author" = "System User <system@example.com>" ]
+
+  # Restore /etc/gitconfig
+  rm -f /etc/gitconfig
+  if [ -f /etc/gitconfig.bak ]; then
+    mv /etc/gitconfig.bak /etc/gitconfig
+  fi
+
+  # Case 6: Warning when committer identity is unknown and dot-gitconfig is disconnected
+  snap disconnect gitu:dot-gitconfig || true
+  set +e
+  GITU_BIN=sh snap run gitu -c "echo 'fatal: unable to auto-detect email address' >&2; exit 1" 2> /root/ident-disc.log
+  set -e
+  grep -q "dot-gitconfig is not connected" /root/ident-disc.log
+  grep -q "snap connect gitu:dot-gitconfig" /root/ident-disc.log
+  snap connect gitu:dot-gitconfig
+
+  # Case 7: Note when committer identity is missing with dot-gitconfig connected
+  set +e
+  GITU_BIN=sh snap run gitu -c "echo 'Committer identity unknown' >&2; exit 1" 2> /root/ident-conn.log
+  set -e
+  grep -q "committer identity not found in ~/.gitconfig or ~/.config/git/config" /root/ident-conn.log
+
+  # Case 8: Warning when an included gitconfig is inaccessible under snap confinement
+  set +e
+  GITU_BIN=sh snap run gitu -c "echo 'fatal: unable to access \"/root/.gitconfig.work\": Permission denied' >&2; exit 1" 2> /root/include-perm.log
+  set -e
+  grep -q "strict snap confinement restricts git configuration" /root/include-perm.log
+  grep -q "move included config files into ~/.config/git/" /root/include-perm.log
+
 restore: |
-  rm -rf /root/gitconfig-repo /root/.gitconfig /root/.config/git
+  rm -rf /root/gitconfig-repo /root/.gitconfig /root/.config/git /root/*.log
+  if [ -f /etc/gitconfig.bak ]; then
+    mv /etc/gitconfig.bak /etc/gitconfig
+  else
+    rm -f /etc/gitconfig
+  fi
+  snap connect gitu:dot-gitconfig || true
