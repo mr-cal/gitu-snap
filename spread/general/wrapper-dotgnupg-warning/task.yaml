@@ -1,0 +1,57 @@
+summary: Warn on gpg failures when dot-gnupg disconnected
+
+execute: |
+  set -eux
+
+  snap_dir=$(snap run --shell gitu -c 'printf "%s" "$SNAP"')
+
+  # Build a temporary SNAP root: real wrapper from the installed snap,
+  # plus a stub gitu that emits a controlled error message and exits.
+  # Only gitu is stubbed -- snapctl runs for real inside the snap cgroup.
+  fake_snap=/root/wrapper-warning-test
+  fake_data=/root/wrapper-warning-data
+  rm -rf "$fake_snap" "$fake_data"
+  mkdir -p "$fake_snap/bin" "$fake_data"
+  cp "$snap_dir/wrapper.sh" "$fake_snap/"
+  printf '#!/bin/sh\n' > "$fake_data/env"
+
+  stub_gitu() {
+    printf '#!/bin/sh\n%s\n' "$1" > "$fake_snap/bin/gitu"
+    chmod +x "$fake_snap/bin/gitu"
+  }
+
+  run_wrapper() {
+    snap run --shell gitu -c \
+      "SNAP=$fake_snap SNAP_DATA=$fake_data sh $fake_snap/wrapper.sh" \
+      2>&1 || true
+  }
+
+  # Case 1: gpg failure + dot-gnupg disconnected → warning shown
+  snap disconnect gitu:dot-gnupg || true
+  stub_gitu 'printf "error: gpg failed to sign the data\n" >&2; exit 1'
+  output=$(run_wrapper)
+  printf '%s\n' "$output" | grep -q 'dot-gnupg is not connected'
+  printf '%s\n' "$output" | grep -q 'snap connect gitu:dot-gnupg'
+
+  # Case 2: non-gpg failure + dot-gnupg disconnected → no warning
+  stub_gitu 'printf "fatal: not a git repository\n" >&2; exit 1'
+  output=$(run_wrapper)
+  if printf '%s\n' "$output" | grep -q 'snap connect gitu:dot-gnupg'; then
+    printf '%s\n' "$output"
+    echo "Unexpected warning for non-gpg failure"
+    exit 1
+  fi
+
+  # Case 3: gpg failure + dot-gnupg connected → no warning
+  snap connect gitu:dot-gnupg
+  stub_gitu 'printf "error: gpg failed to sign the data\n" >&2; exit 1'
+  output=$(run_wrapper)
+  if printf '%s\n' "$output" | grep -q 'snap connect gitu:dot-gnupg'; then
+    printf '%s\n' "$output"
+    echo "Unexpected warning when dot-gnupg is connected"
+    exit 1
+  fi
+
+restore: |
+  snap connect gitu:dot-gnupg || true
+  rm -rf /root/wrapper-warning-test /root/wrapper-warning-data
