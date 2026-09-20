@@ -6,6 +6,30 @@
 # Allow overriding the binary (defaults to gitu; tests can point this to git or stubs)
 GITU_BIN="${GITU_BIN:-$SNAP/bin/gitu}"
 
+# Unset legacy single-file override if present so git can discover all global configs
+if [ "${GIT_CONFIG_GLOBAL:-}" = "$SNAP_REAL_HOME/.gitconfig" ]; then
+    unset GIT_CONFIG_GLOBAL
+fi
+
+# Ensure git finds user config from the host home (~/.config/git and ~/.gitconfig)
+if [ -n "$SNAP_REAL_HOME" ]; then
+    mkdir -p "$HOME/.config"
+    if [ ! -e "$HOME/.gitconfig" ] || [ -L "$HOME/.gitconfig" ]; then
+        if [ -f "$SNAP_REAL_HOME/.gitconfig" ]; then
+            ln -sf "$SNAP_REAL_HOME/.gitconfig" "$HOME/.gitconfig"
+        elif [ -L "$HOME/.gitconfig" ]; then
+            rm -f "$HOME/.gitconfig"
+        fi
+    fi
+    if [ ! -e "$HOME/.config/git" ] || [ -L "$HOME/.config/git" ]; then
+        if [ -d "$SNAP_REAL_HOME/.config/git" ]; then
+            ln -sfn "$SNAP_REAL_HOME/.config/git" "$HOME/.config/git"
+        elif [ -L "$HOME/.config/git" ]; then
+            rm -f "$HOME/.config/git"
+        fi
+    fi
+fi
+
 emit_dot_gnupg_warning() {
     cat >&2 <<'EOF'
 [gitu snap] warning: gpg-related operation failed and dot-gnupg is not connected.

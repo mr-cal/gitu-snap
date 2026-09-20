@@ -46,7 +46,6 @@ apps:
   gitu:
     command: wrapper.sh
     environment:
-      GIT_CONFIG_GLOBAL: "$SNAP_REAL_HOME/.gitconfig"
       GNUPGHOME: "$SNAP_REAL_HOME/.gnupg"
       GPG_TTY: "$SNAP_TTY"
     plugs:

@@ -1,0 +1,68 @@
+summary: Verify gitconfig and XDG git config files are read by gitu snap
+
+execute: |
+  set -eux
+
+  # Ensure dot-gitconfig plug is connected
+  snap connect gitu:dot-gitconfig
+
+  # Clean up test directories
+  rm -rf /root/gitconfig-repo /root/.gitconfig /root/.config/git
+  install -d -m 755 /root/gitconfig-repo
+  install -d -m 755 /root/.config/git
+  cd /root/gitconfig-repo
+
+  git init -b main .
+
+  # Case 1: Config exclusively in ~/.config/git/config (XDG standard)
+  cat << 'EOF' > /root/.config/git/config
+  [user]
+      name = XDG User
+      email = xdg@example.com
+  EOF
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with xdg config"
+  author=$(git log -1 --pretty='%an <%ae>')
+  [ "$author" = "XDG User <xdg@example.com>" ]
+
+  # Verify gitu TUI can run and render in repo configured via XDG
+  script -q -e -c "stty cols 80 rows 24 && snap run gitu --print" /dev/null \
+    | sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g' \
+    | grep -q "On branch main"
+
+  # Case 2: Config exclusively in ~/.gitconfig
+  rm -rf /root/.config/git
+  cat << 'EOF' > /root/.gitconfig
+  [user]
+      name = DotGitconfig User
+      email = dotgit@example.com
+  EOF
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with dotgitconfig"
+  author=$(git log -1 --pretty='%an <%ae>')
+  [ "$author" = "DotGitconfig User <dotgit@example.com>" ]
+
+  # Case 3: Both ~/.config/git/config and ~/.gitconfig exist (precedence)
+  install -d -m 755 /root/.config/git
+  cat << 'EOF' > /root/.config/git/config
+  [user]
+      name = Combined User
+      email = xdg-base@example.com
+  EOF
+  cat << 'EOF' > /root/.gitconfig
+  [user]
+      email = dotgit-override@example.com
+  EOF
+
+  GITU_BIN=git snap run gitu commit --allow-empty -m "commit with combined config"
+  author=$(git log -1 --pretty='%an <%ae>')
+  [ "$author" = "Combined User <dotgit-override@example.com>" ]
+
+  # Case 4: Verify global gitignore in ~/.config/git/ignore is respected
+  echo "*.ignored" > /root/.config/git/ignore
+  touch test.ignored
+  ignored_check=$(GITU_BIN=git snap run gitu status --porcelain)
+  [ -z "$ignored_check" ]
+
+restore: |
+  rm -rf /root/gitconfig-repo /root/.gitconfig /root/.config/git
